@@ -1,0 +1,30 @@
+{
+  "name": "not-enough-staff",
+  "version": "1.0.0",
+  "description": "Help manage NaverCafe",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ./example/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SemteulGaram/NotEnoughtStaff.git"
+  },
+  "keywords": [
+    "naver",
+    "navercafe",
+    "manage",
+    "tool"
+  ],
+  "author": {
+    "name": "SemteulGaram",
+    "email": "scgtdy7151@gmail.com",
+    "url": "http://semteul.com/"
+  },
+  "license": "GNU",
+  "dependencies": {
+    "bluebird": "^3.4.6",
+    "phantom": "^2.1.21",
+    "uuid": "^2.0.3"
+  }
+}

@@ -1,0 +1,1 @@
+DEBUG=NES* npm test
