@@ -1,6 +1,6 @@
 let debug = require("debug")("NES:pcallback");
 let events = [];
-let lastUrl = "";
+let lastUrl = "", tickLastUrl = "";
 
 exports.event = function(str, obj) {
   let cmd = str.split(" ");
@@ -26,5 +26,7 @@ exports.unregisterEvent = function(uuid) {
 };
 
 exports.getLastUrl = () => {return lastUrl;};
+exports.getTickLastUrl = () => {return tickLastUrl;};
 
 exports.registerEvent({uuid: "00000001", command: "&onUrlChanged", callback: url => {lastUrl = url;}});
+exports.registerEvent({uuid: "00000002", command: "&tick-onUrlChanged", callback: url => {tickLastUrl = url;}});

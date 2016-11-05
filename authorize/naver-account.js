@@ -1,15 +1,15 @@
 const TAG = "NES:naver-account";
 
+let chalk = require("chalk");
 let debug = require("debug")(TAG);
 let fs = require("fs");
-let chalk = require("chalk");
+let format = require("string-format");
 let uuid = require("uuid");
 let Promise = require("bluebird");
 Promise.promisifyAll(fs);
 
 let Captcha = require("./captcha.js");
 let pcallback = require("../phantom-additional/callback.js");
-let PhantomRender = require("../phantom-additional/render.js");
 let MouseClick = require("../utils/mouse-click.js");
 
 const CONFIG = "./config/NaverAccount.json";
@@ -126,6 +126,10 @@ class NaverAccount {
   _loginCheck(phantomPage, captcha) {
     let that = this;
     return new Promise(function(resolve, reject) {
+      phantomPage.property("title")
+      .then(title => {
+        debug(format("login checking... (page: {0}, captcha: {1})", title, captcha || "undefined"));
+      }, ()=>{});
       phantomPage.evaluate(function(id, pw, click, captcha) {
         //if has captcha fill it
         if(captcha) document.querySelector("input#chptcha").setAttribute("value", captcha);
@@ -150,6 +154,11 @@ class NaverAccount {
         //login timeout 10sec
         let id = setTimeout(() => {
           pcallback.unregisterEvent(eventUUID);
+          //only debug
+          phantomPage.property("title")
+          .then(title => {
+            debug(format("not response from callback. checking problem... (page: {0})", title));
+          }, ()=>{});
           phantomPage.evaluate(function() {
             //has error?
             var hasErr = document.querySelector("#err_common");

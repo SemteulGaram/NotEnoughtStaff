@@ -11,7 +11,7 @@ NotEnoughStaff.create()
   instance.start().then(success => {
     debug(success + " " + nes.isAlive);
     if(!success) return;
-    instance.request("example-plugin", ["topRankSearchWord"])
+    instance.request("example-plugin", ["getNickname"])
     .then(result => {
       debug(result);
     })

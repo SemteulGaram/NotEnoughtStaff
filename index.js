@@ -45,8 +45,8 @@ class NotEnoughStaff {
         this.plugin.doTick().then(() => {
           let delay = (that.config.minDelay - (Date.now() - that._lastRequest));
           that._currentTimeoutToken = setTimeout(this.tick, delay < 0 ? 0 : delay);
-        }, (err, plugin) => {
-          plugin = plugin || {};
+        }, (errObj) => {
+          let err = errObj[0], plugin = errObj[1] || {};
           console.warn(TAG + " Error occur during tick on Plugin("+plugin.name+")\n", err);
           if(++this.tickErrorCount === this.config.maxErrorCount) {
             console.error(chalk.red(TAG + " tickErrorCount reach max! ticking force stopped!"));

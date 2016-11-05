@@ -1,4 +1,6 @@
+let debug = require("debug")("NES:prender");
 let fs = require("fs");
+let format = require("string-format");
 let Promise = require("bluebird");
 Promise.promisifyAll(fs);
 
@@ -7,6 +9,10 @@ let AlternativeFileName = require("../utils/alternative-file-name.js");
 const SCREENSHOT_DIR = "./screenshot";
 
 module.exports = function(phantomPage, fileName, options, overwrite) {
+  phantomPage.property("title")
+  .then(title => {
+    debug(format("page render request (page: {0}, file: {1})", title, fileName));
+  }, () => {});
   return new Promise(function(resolve, reject) {
     options = options || {format: "jpeg", quality: 100};
     fileName = fileName ? fileName : ("untitled." + options.format);

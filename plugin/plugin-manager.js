@@ -26,7 +26,9 @@ class PluginManager {
         require("../plugins/" + name + ".js").create(iuuid, {
           registerCallback: PhantomCallback.registerEvent,
           unregisterCallback: PhantomCallback.unregisterEvent,
-          createUUID: uuid.v4
+          createUUID: uuid.v4,
+          getLastRequestUrl: PhantomCallback.getLastUrl,
+          getLastTickUrl: PhantomCallback.getTickLastUrl
         }).then(instance => {
           that.pluginInstance.push({uuid: iuuid, name: name, instance: instance});
           resolve(iuuid);
@@ -109,7 +111,7 @@ class PluginManager {
         resolve();
       })
       .catch(err => {
-        reject(err, that.pluginInstance[that.tickIndex]);
+        reject([err, that.pluginInstance[that.tickIndex]]);
       });
     });
   }

@@ -1,3 +1,4 @@
+let chalk = require("chalk");
 let readline = require("readline");
 let PhantomRender = require("../phantom-additional/render.js");
 let Promise = require("bluebird");
@@ -15,7 +16,7 @@ module.exports = function(phantomPage) {
   return new Promise(function(resolve, reject) {
     PhantomRender(phantomPage, "Captcha.jpeg")
     .then(fileName => {
-      return question("Please see the [./screenshot/" + fileName + "] and type a valid captcha>");
+      return question(chalk.bgWhite.black("Please see the [./screenshot/" + fileName + "] and type a valid captcha>"));
     }, err => {
       reject(err);
     })
