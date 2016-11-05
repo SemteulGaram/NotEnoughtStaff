@@ -13,8 +13,9 @@ Promise.promisifyAll(fs);
 
 let NaverAccount = require("./authorize/naver-account.js");
 let PluginManager = require("./plugin/plugin-manager.js");
-let plogger = require("./phantom-additional/phantom-logger.js").getLogger();
-let pcallback = require("./phantom-additional/phantom-callback.js");
+let plogger = require("./phantom-additional/logger.js").getLogger();
+let pcallback = require("./phantom-additional/callback.js");
+let PhantomRender = require("./phantom-additional/render.js");
 
 class NotEnoughStaff {
   constructor() {
@@ -56,7 +57,7 @@ class NotEnoughStaff {
           }
         });
       }
-    }
+    };
   }
 
   toString() {
@@ -94,12 +95,12 @@ class NotEnoughStaff {
           debug("save config");
           resolve(_);
         });
-      }
+      };
 
       //check parent folder and mkdir progress
       if(!fs.existsSync(CONFIG_FOLDER)) {
         fs.mkdirAsync(CONFIG_FOLDER)
-        .then(_ => {
+        .then(() => {
           debug("made config folder");
           return save();
         })
@@ -116,7 +117,7 @@ class NotEnoughStaff {
   checkConfig() {
     debug("checking config...");
     let keys = Object.getOwnPropertyNames(this._defaultConfig);
-    keys.map(element => {if(this.config[element] === undefined) this.config[element] = this._defaultConfig[element]});
+    keys.map(element => {if(this.config[element] === undefined) this.config[element] = this._defaultConfig[element];});
 
     if(parseInt(this.config.minDelay) == this.config.minDelay) {
       this.config.minDelay = 2000;
@@ -127,13 +128,17 @@ class NotEnoughStaff {
     //start progress
     this.isAlive = true;
 
-    pcallback.registerEvent({uuid: uuid.v4(), command: "&onError2", callback: msg => {
-      plogger.warn(msg);
+    pcallback.registerEvent({uuid: uuid.v4(), command: "&onError", callback: msg => {
+      plogger.warn("Req: " + msg);
     }});
 
-    pcallback.registerEvent({uuid: uuid.v4(), command: "&onUrlChanged2", callback: url => {
-      plogger.info("URL change: " + url);
-    }})
+    pcallback.registerEvent({uuid: uuid.v4(), command: "&onUrlChanged", callback: url => {
+      plogger.info("Req - URL change: " + url);
+    }});
+
+    pcallback.registerEvent({uuid: uuid.v4(), command: "&tick-onError", callback: msg => {
+      plogger.warn("Tic: " + msg);
+    }});
 
     let that = this;
     console.log(chalk.cyan("NotEnoughStaff " + VERSION + " starting..."));
@@ -194,36 +199,22 @@ class NotEnoughStaff {
       debug("phantom requestPage created");
       return that.account.doLogin(that.rpage);
     })
-    .then(page => {
+    .then(() => {
       debug("naver login successful");
       //ticking start
       that.lastRequest = Date.now();
       this.tick();
-      /* rendering test
-      page.open("http://cafe.naver.com/minecraftpe/staff/1441").then(status => {
-        let eventUUID = uuid.v4();
-        pcallback.registerEvent({uuid: eventUUID, command: "&onLoadFinished", callback: status => {
-          if(pcallback.getLastUrl() === "http://cafe.naver.com/minecraftpe/staff/1441") {
-            pcallback.unregisterEvent(eventUUID);
-            debug("render page...");
-            page.render("pic.jpeg", {format: 'jpeg'})
-            .then(success => {
-              debug(success);
-            }, err => {
-              debug(err);
-            });
-          }
-        }});
-      });*/
       return true;
     })
     .catch(err => {
-      console.warn(chalk.red("Error occur during phantom execute\n"), err);
-      return false;
+      console.error(chalk.red("Error occur during phantom execute\n"), err);
+      return PhantomRender(that.rpage, "NES-debug.jpeg")
+      .then(fileName => {
+        console.error("debug page-img created: /screenshot/" + fileName);
+        that.stop(); //TODO: make nes.stop to Promise
+        return false;
+      });
     });
-
-
-    //this.stop(); //TODO: remove this
   }
 
   stop() {
@@ -231,7 +222,7 @@ class NotEnoughStaff {
     //stop progress
     this.isAlive = false;
     console.log(chalk.magenta("clearing timeout..."));
-    try {clearTimeout(this.currentTimeoutToken)}catch(err) {console.log(err)}
+    try {clearTimeout(this.currentTimeoutToken);}catch(err) {console.log(err);}
     console.log(chalk.magenta("Phantom object exiting..."));
     this.phantom.exit();
   }
@@ -241,7 +232,7 @@ class NotEnoughStaff {
   }
 }
 
-exports.create = () => {return new Promise(function(resolve, reject) {
+exports.create = () => {return new Promise(function(resolve) {
   let instance = new NotEnoughStaff();
 
   let secondLoad = () => {return NaverAccount.create()
@@ -262,26 +253,26 @@ exports.create = () => {return new Promise(function(resolve, reject) {
     instance.plugin = pluginManagerInstance;
     debug("instance load finished");
     resolve(instance);
-  })};
+  });};
 
 
   if(instance.existsConfig()) {
-    instance.loadConfig().then(_ => {
+    instance.loadConfig().then(() => {
       instance.checkConfig();
       return secondLoad();
     })
-    .catch(err => {
+    .catch(() => {
       resolve(instance);
     });
   }else {
     instance.config = instance._defaultConfig;
     instance.saveConfig()
-    .then(_ => {
+    .then(() => {
       return secondLoad();
     })
-    .catch(err => {
+    .catch(() => {
       resolve(instance);
     });
   }
 
-})};
+});};

@@ -1,6 +1,6 @@
 let pdebug = require("debug")("NES:phantom");
 
-let pcallback = require("./phantom-callback.js");
+let pcallback = require("./callback.js");
 let logLevel = 1;
 
 //this is not a just logger
@@ -32,4 +32,4 @@ exports.getLogger = () => {return {
     if(logLevel > 4) return;
     pdebug("FATAL: " + msg);
   }
-}};
+};};

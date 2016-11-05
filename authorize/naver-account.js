@@ -7,7 +7,10 @@ let uuid = require("uuid");
 let Promise = require("bluebird");
 Promise.promisifyAll(fs);
 
-let pcallback = require("../phantom-additional/phantom-callback.js");
+let Captcha = require("./captcha.js");
+let pcallback = require("../phantom-additional/callback.js");
+let PhantomRender = require("../phantom-additional/render.js");
+let MouseClick = require("../utils/mouse-click.js");
 
 const CONFIG = "./config/NaverAccount.json";
 const CONFIG_FOLDER = "./config";
@@ -49,12 +52,12 @@ class NaverAccount {
           debug("save config");
           resolve(_);
         });
-      }
+      };
 
       //check parent folder and mkdir progress
       if(!fs.existsSync(CONFIG_FOLDER)) {
         fs.mkdirAsync(CONFIG_FOLDER)
-        .then(_ => {
+        .then(() => {
           debug("made config folder");
           return save();
         })
@@ -90,54 +93,96 @@ class NaverAccount {
       phantomPage.open("https://nid.naver.com/nidlogin.login")
       .then(status => {
         debug("connect status: " + chalk.cyan(status));
-        if(status === "fail") {
-          reject(new Error("connection status is fail"));
-          return;
-        }
-        return phantomPage.evaluate(function(id, pw, click) {
-          //fill form
-          document.querySelector("input#id").setAttribute("value", id);
-          document.querySelector("input#pw").setAttribute("value", pw);
+        if(status === "fail") reject(new Error("connection status is fail"));
 
-          //login button
-          click(document.querySelector("input[type=submit]"));
-          try {
-            //add device? - true
-            click(document.querySelector("span[class=btn_upload] > a"));
-            //stay login? - false
-            click(document.querySelector("span[class=btn_cancel3] > a"));
-          }catch(err) {
-            console.error(err);
-          }
-        }, that.config.id, that.config.pw, require("../utils/mouse-click.js"));
+        return that._loginCheck(phantomPage);
       })
-      .then(_ => {
+      .then(() => resolve())
+      .catch(hasProblem => {
+        if(hasProblem) {
+          if(hasProblem[0]) reject(hasProblem[0]);
+          //detect captcha
+          else if(hasProblem[1]) {
+            //detected captcha one more login
+            return Captcha(phantomPage) //wait user input...
+            .then(answer => {
+              return that._loginCheck(phantomPage, answer);
+            }, err => {
+              debug("unknown Captcha inner error occur");
+              reject(err);
+            })
+            .then(() => resolve());
+          //never happen
+          }else {
+            reject("wtf(What the Terrible Fail) error occur!");
+          }
+        }else {
+          reject("login timeout");
+        }
+      });
+    });
+  }
+
+  _loginCheck(phantomPage, captcha) {
+    let that = this;
+    return new Promise(function(resolve, reject) {
+      phantomPage.evaluate(function(id, pw, click, captcha) {
+        //if has captcha fill it
+        if(captcha) document.querySelector("input#chptcha").setAttribute("value", captcha);
+        //fill id
+        document.querySelector("input#id").setAttribute("value", id);
+        //fill password
+        document.querySelector("input#pw").setAttribute("value", pw);
+
+        //click login button
+        click(document.querySelector("input[type=submit]"));
+        try {
+          //add device? - true
+          click(document.querySelector("span[class=btn_upload] > a"));
+          //stay login? - false
+          click(document.querySelector("span[class=btn_cancel3] > a"));
+        }catch(err) {
+          console.error(err);
+        }
+      }, that.config.id, that.config.pw, MouseClick, captcha)
+      .then(() => {
         let eventUUID = uuid.v4();
+        //login timeout 10sec
         let id = setTimeout(() => {
           pcallback.unregisterEvent(eventUUID);
-          reject("login timeout");
+          phantomPage.evaluate(function() {
+            //has error?
+            var hasErr = document.querySelector("#err_common");
+            //has captcha?
+            //wtf naver why c"h"ptcha? it is "captcha"!
+            var hasCaptcha = document.querySelector("#chptcha");
+            console.log("&log hasError: " + hasErr);
+            console.log("&log hasCaptcha: " + hasCaptcha);
+            return [hasErr ? hasErr.innerText : false, hasCaptcha ? hasCaptcha : false];
+          })
+          .then(hasProblem => {
+            if(hasProblem[0] || hasProblem[1]) reject(hasProblem);
+            else reject(false);
+          });
         }, 10000);
-        pcallback.registerEvent({uuid: eventUUID, command: "&onLoadFinished", callback: success => {
+        pcallback.registerEvent({uuid: eventUUID, command: "&onLoadFinished", callback: () => {
           if(pcallback.getLastUrl() === "http://www.naver.com/") {
             clearTimeout(id);
             pcallback.unregisterEvent(eventUUID);
-            resolve(phantomPage);
+            resolve();
           }
         }});
-      })
-      .catch(err => {
-        reject(err);
       });
     });
   }
 }
 
-exports.create = () => {return new Promise(function(resolve, reject) {
+exports.create = () => {return new Promise(function(resolve) {
   let instance = new NaverAccount();
   if(fs.existsSync(CONFIG)) {
     debug("constructor with config...");
     instance.loadConfig()
-    .then(_ => {
+    .then(() => {
       debug("finish load config");
       resolve(instance);
     }, err => {
@@ -148,4 +193,4 @@ exports.create = () => {return new Promise(function(resolve, reject) {
     debug("constructor without config...");
     resolve(instance);
   }
-})};
+});};

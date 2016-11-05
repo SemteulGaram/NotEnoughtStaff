@@ -8,7 +8,7 @@ let Promise = require("bluebird");
 Promise.promisifyAll(fs);
 
 let PromiseLoop = require("../utils/promise-loop.js");
-let PhantomCallback = require("../phantom-additional/phantom-callback.js");
+let PhantomCallback = require("../phantom-additional/callback.js");
 
 class PluginManager {
   constructor() {
@@ -90,7 +90,7 @@ class PluginManager {
     if(this.tickIndex >= this.pluginInstance.length) {
       //No plugins
       if(this.pluginInstance.length === 0)
-        return new Promise(function(resolve, reject) {resolve()});
+        return new Promise(function(resolve) {resolve();});
       this.tickIndex = 0;
     }
 
@@ -98,7 +98,7 @@ class PluginManager {
       _loopCount = _loopCount || 1;
       //Every plugin doesn't have tick function
       if(_loopCount >= this.pluginInstance.length)
-        return new Promise(function(resolve, reject) {resolve()});
+        return new Promise(function(resolve) {resolve();});
       //loop to next
       return this.doTick(++_loopCount);
     }
@@ -114,11 +114,11 @@ class PluginManager {
     });
   }
 
-  doRequest(nameOrUUID, options, callbackPromise) {
+  doRequest(nameOrUUID, options) {
     debug("request("+nameOrUUID+") " + options);
     //if don't have page instance
     if(!this.rpage) {
-      return new Promise(function(resolve, reject) {
+      return new Promise(function(_, reject) {
         reject(new Error("PluginManager doesn't have phantom page instance"));
       });
     }
@@ -126,7 +126,7 @@ class PluginManager {
     //find plugin
     let i = this._findIndex(nameOrUUID);
     if(i === false) {
-      return new Promise(function(resolve, reject) {
+      return new Promise(function(_, reject) {
         reject(new Error("Unknown plugin name or uuid: " + nameOrUUID));
       });
     }
@@ -154,8 +154,8 @@ exports.create = list => {
       return count < list.length;
     }, function(count) {
       return instance.addPlugin(list[count])
-      .then(_ => {return ++count});
+      .then(() => {return ++count;});
     })
-    .then(_ => resolve(instance), err => reject(err));
+    .then(() => resolve(instance), err => reject(err));
   });
-}
+};

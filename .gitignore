@@ -41,3 +41,6 @@ config
 
 # Render test
 screenshot
+
+# Test file
+tmpTest.js
