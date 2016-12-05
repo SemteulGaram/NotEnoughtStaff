@@ -5,6 +5,7 @@ const CONFIG_FOLDER = "./config";
 
 let debug = require("debug")(TAG);
 let chalk = require("chalk");
+let format = require("string-format");
 let fs = require("fs");
 let uuid = require("uuid");
 let Phantom = require("phantom");
@@ -18,16 +19,17 @@ let pcallback = require("./phantom-additional/callback.js");
 let PhantomRender = require("./phantom-additional/render.js");
 
 class NotEnoughStaff {
-  constructor() {
+  constructor(alertCallback) {
     console.log(chalk.cyan("NotEnoughStaff " + VERSION + " loading..."));
 
     this.isAlive = false;
     this.config = {};
     this._defaultConfig = {
-      enablePluginName: ["example-plugin"],
+      enablePluginName: ["nes-example-plugin"],
       minDelay: 2000,
       maxErrorCount: 5
     };
+    this._alert = alertCallback;
     this.account = null;
     this.plugin = null;
     this.phantom = null;
@@ -118,7 +120,6 @@ class NotEnoughStaff {
     debug("checking config...");
     let keys = Object.getOwnPropertyNames(this._defaultConfig);
     keys.map(element => {if(this.config[element] === undefined) this.config[element] = this._defaultConfig[element];});
-
     if(parseInt(this.config.minDelay) == this.config.minDelay) {
       this.config.minDelay = 2000;
     }
@@ -129,15 +130,27 @@ class NotEnoughStaff {
     this.isAlive = true;
 
     pcallback.registerEvent({uuid: uuid.v4(), command: "&onError", callback: msg => {
-      plogger.warn("Req: " + msg);
+      plogger.warn("Req - Err: " + msg);
+    }});
+
+    pcallback.registerEvent({uuid: uuid.v4(), command: "&onConsoleMessage", callback: msg => {
+      plogger.info("Req: " + msg);
+    }});
+
+    pcallback.registerEvent({uuid: uuid.v4(), command: "&onAlert", callback: msg => {
+      plogger.info("Req - Alert: " + msg);
     }});
 
     pcallback.registerEvent({uuid: uuid.v4(), command: "&onUrlChanged", callback: url => {
       plogger.info("Req - URL change: " + url);
     }});
 
+    pcallback.registerEvent({uuid: uuid.v4(), command: "&onLoadFinished", callback: success => {
+      plogger.info("Req - Load Finished: " + success);
+    }});
+
     pcallback.registerEvent({uuid: uuid.v4(), command: "&tick-onError", callback: msg => {
-      plogger.warn("Tic: " + msg);
+      plogger.warn("Tic - Err: " + msg);
     }});
 
     let that = this;
@@ -227,14 +240,30 @@ class NotEnoughStaff {
     this.phantom.exit();
   }
 
-  request(nameOrUUID, options, callbackPromise) {
-    return this.plugin.doRequest(nameOrUUID, options, callbackPromise);
+  renderReq(name, options, overwrite) {
+    return PhantomRender(this.rpage, name, options, overwrite);
+  }
+
+  renderTick(name, options, overwrite) {
+    return PhantomRender(this.ppage, name, options, overwrite);
+  }
+
+  request(nameOrUUID, options) {
+    return this.plugin.doRequest(nameOrUUID, options);
+  }
+
+  _doAlert(alertLevel, message, thumbUrl, targetUrl) {
+    if(typeof this._alert !== "function") {
+      debug(this);
+      console.warn(format("{0} alertCallback isn't function!", TAG));
+      return;
+    }
+    this._alert(alertLevel, message, thumbUrl, targetUrl);
   }
 }
 
-exports.create = () => {return new Promise(function(resolve) {
-  let instance = new NotEnoughStaff();
-
+exports.create = alertCallback => {return new Promise(function(resolve) {
+  let instance = new NotEnoughStaff(alertCallback);
   let secondLoad = () => {return NaverAccount.create()
   .then(accountInstance => {
     debug("NaverAccount instance load success");
@@ -246,7 +275,7 @@ exports.create = () => {return new Promise(function(resolve) {
   .then(phantomInstance => {
     debug("Phantom instance load success");
     instance.phantom = phantomInstance;
-    return PluginManager.create(instance.config.enablePluginName);
+    return PluginManager.create(instance.config.enablePluginName, (a, b, c, d) => instance._doAlert(a, b, c, d));
   })
   .then(pluginManagerInstance => {
     debug("PluginManager instance load success");

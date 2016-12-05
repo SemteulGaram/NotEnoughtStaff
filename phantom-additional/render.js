@@ -17,7 +17,7 @@ module.exports = function(phantomPage, fileName, options, overwrite) {
     options = options || {format: "jpeg", quality: 100};
     fileName = fileName ? fileName : ("untitled." + options.format);
 
-    return fs.statAsync(SCREENSHOT_DIR + "/" + fileName)
+    fs.statAsync(SCREENSHOT_DIR + "/" + fileName)
     .then(() => {
       //exists
       if(overwrite) {
